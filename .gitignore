@@ -68,3 +68,11 @@ release/
 # If you have test files
 testdata/
 tests/
+
+# Ignore compiled Go files
+*.exe
+*.o
+*.out
+
+# Ignore specific compiled file
+Cancer-Cell-Detector

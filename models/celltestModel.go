@@ -15,7 +15,7 @@ type CellTest struct {
     DeletedAt       gorm.DeletedAt  `gorm:"index"`
     Title           string          `gorm:"size:255;not null"`
     Description     string          `gorm:"type:text"`
-    DetectionStatus string          `gorm:"size:1;not null"`
+    DetectionStatus string          `gorm:"size:255;not null"`
     PatientID       uuid.UUID       `gorm:"type:uuid;not null"`
     Patient         *Patient        `gorm:"foreignKey:PatientID"`
     Results         []*Result       `gorm:"foreignKey:CellTestID"`
