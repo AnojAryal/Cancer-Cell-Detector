@@ -1,0 +1,70 @@
+# Binaries for programs and plugins
+*.exe
+*.dll
+*.so
+*.dylib
+*.test
+*.out
+
+# Output of the go coverage tool
+*.coverprofile
+
+# Output of the go build tool
+bin/
+build/
+
+# Dependency directories (remove the comment below if you use go modules)
+# /vendor/
+
+# IDE/editor specific files
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# MacOS specific files
+.DS_Store
+
+# Node.js specific files
+node_modules/
+
+# If you use log files
+*.log
+
+# If you have a configuration file
+config.json
+
+# Ignore generated files
+gen/
+
+# Ignore environment variable files
+.env
+
+# Temporary files
+tmp/
+
+# Coverage reports
+coverage.out
+cover.out
+coverage/
+
+# Go workspace files
+go.work
+go.work.sum
+
+# Other files you may want to ignore
+*.bak
+*.tmp
+*.old
+
+# Linux specific files
+*~
+
+# Custom build files
+build/
+dist/
+release/
+
+# If you have test files
+testdata/
+tests/
