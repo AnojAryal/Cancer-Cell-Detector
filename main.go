@@ -1,6 +1,7 @@
 package main
 
 import (
+	"github.com/anojaryal/Cancer-Cell-Detector/controllers"
 	"github.com/anojaryal/Cancer-Cell-Detector/initializers"
 	"github.com/gin-gonic/gin"
 )
@@ -9,14 +10,14 @@ import (
 func init() {
 	initializers.LoadEnvVariables()
 	initializers.ConnectToDB()	
+	initializers.SyncDatabase()
 }
 
 func main() {
 	r := gin.Default()
-	r.GET("/ping", func(c *gin.Context) {
-		c.JSON(200, gin.H{
-			"message": "Hello! this is the strarting point of the app",
-		})
-	})
-	r.Run()
+	r.POST("/signup", controllers.SignUp)
+	r.POST("/hospitals", controllers.CreateHospital)
+	r.GET("/hospitals", controllers.GetHospitals)
+	
+	r.Run() 
 }
