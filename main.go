@@ -16,6 +16,7 @@ func init() {
 func main() {
 	r := gin.Default()
 	r.POST("/signup", controllers.SignUp)
+	r.POST("/login",controllers.Login)
 	r.POST("/hospitals", controllers.CreateHospital)
 	r.GET("/hospitals", controllers.GetHospitals)
 	
