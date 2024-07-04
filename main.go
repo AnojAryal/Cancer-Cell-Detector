@@ -16,6 +16,7 @@ func init() {
 func main() {
 	r := gin.Default()
 	r.POST("/signup", controllers.SignUp)
+	r.GET("/verify/:token", controllers.VerifyUserEmail)
 	r.POST("/login", controllers.Login)
 	r.GET("/validate", middleware.RequireAuth, controllers.Validate)
 	r.POST("/hospitals", controllers.CreateHospital)
