@@ -109,3 +109,48 @@ func SignUp(c *gin.Context) {
 		"message": "User created successfully. Please check your email for verification instructions.",
 	})
 }
+
+// VerifyUserEmail
+func VerifyUserEmail(c *gin.Context) {
+	token := c.Param("token")
+
+	// Parse and validate the token
+	parsedToken, err := jwt.Parse(token, func(token *jwt.Token) (interface{}, error) {
+		return []byte(SECRET_KEY), nil
+	})
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid token"})
+		return
+	}
+
+	// Check if token is valid
+	if !parsedToken.Valid {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid token"})
+		return
+	}
+
+	// Extract user ID from claims
+	userID := int(parsedToken.Claims.(jwt.MapClaims)["user_id"].(float64))
+
+	// Fetch user from database
+	var user models.User
+	if err := initializers.DB.First(&user, userID).Error; err != nil {
+		c.JSON(http.StatusNotFound, gin.H{"error": "User not found"})
+		return
+	}
+
+	// Check if user is already verified
+	if user.IsVerified {
+		c.JSON(http.StatusOK, gin.H{"message": "Email is already verified"})
+		return
+	}
+
+	// Mark user as verified and update in the database
+	user.IsVerified = true
+	if err := initializers.DB.Save(&user).Error; err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to verify email"})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{"message": "Email verified successfully"})
+}
