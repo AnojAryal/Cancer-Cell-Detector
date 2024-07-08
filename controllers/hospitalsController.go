@@ -6,16 +6,17 @@ import (
 	"github.com/anojaryal/Cancer-Cell-Detector/initializers"
 	"github.com/anojaryal/Cancer-Cell-Detector/models"
 	"github.com/gin-gonic/gin"
+	"gorm.io/gorm"
 )
 
+// CreateHospital
 func CreateHospital(c *gin.Context) {
-	// Define a struct for request body
+
 	var body struct {
-		Name	string 
-		Address	string 
-		Phone	string    
-		Email	string 
-	
+		Name    string `json:"name"`
+		Address string `json:"address"`
+		Phone   string `json:"phone"`
+		Email   string `json:"email"`
 	}
 
 	// Bind request body to struct
@@ -26,15 +27,14 @@ func CreateHospital(c *gin.Context) {
 		return
 	}
 
-	// Create hospital instance
+	//hospital instance
 	hospital := models.Hospital{
-		Name	:	body.Name,
-		Address	:	body.Address,
-		Phone	:	body.Phone,
-		Email	:	body.Email,
+		Name:    body.Name,
+		Address: body.Address,
+		Phone:   body.Phone,
+		Email:   body.Email,
 	}
 
-	// Save hospital to database
 	result := initializers.DB.Create(&hospital)
 	if result.Error != nil {
 		c.JSON(http.StatusBadRequest, gin.H{
@@ -43,24 +43,14 @@ func CreateHospital(c *gin.Context) {
 		return
 	}
 
-	// Respond with success message
 	c.JSON(http.StatusCreated, gin.H{
 		"message": "Hospital created successfully",
 	})
 }
 
-//GET request to fetch all hospitals
+// fetching all hospitals
 func GetHospitals(c *gin.Context) {
-
-	type Hospital struct {
-		ID      uint   
-		Name    string 
-		Address string 
-		Phone   string 
-		Email   string
-	}
-	
-	var hospitals []Hospital
+	var hospitals []models.Hospital
 
 	// Fetch hospitals from database
 	result := initializers.DB.Find(&hospitals)
@@ -71,6 +61,26 @@ func GetHospitals(c *gin.Context) {
 		return
 	}
 
-	// Respond with fetched hospitals
 	c.JSON(http.StatusOK, hospitals)
+}
+
+// GetHospitalById
+func GetHospitalById(c *gin.Context) {
+	var hospital models.Hospital
+
+	// Extract the hospital ID from the URL parameters
+	id := c.Param("id")
+
+	// Fetch the hospital from the database by ID
+	result := initializers.DB.First(&hospital, id)
+	if result.Error != nil {
+		if result.Error == gorm.ErrRecordNotFound {
+			c.JSON(http.StatusNotFound, gin.H{"error": "Hospital not found"})
+		} else {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to fetch hospital"})
+		}
+		return
+	}
+
+	c.JSON(http.StatusOK, hospital)
 }
