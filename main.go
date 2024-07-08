@@ -21,6 +21,7 @@ func main() {
 	r.GET("/validate", middleware.RequireAuth, controllers.Validate)
 	r.POST("/hospitals", controllers.CreateHospital)
 	r.GET("/hospitals", controllers.GetHospitals)
+	r.GET("/hospitals/:id", controllers.GetHospitalById)
 
 	r.Run()
 }
