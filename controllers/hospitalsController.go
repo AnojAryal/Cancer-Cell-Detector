@@ -84,3 +84,52 @@ func GetHospitalById(c *gin.Context) {
 
 	c.JSON(http.StatusOK, hospital)
 }
+
+// update hospital by id
+func UpdateHospitalById(c *gin.Context) {
+	var hospital models.Hospital
+
+	id := c.Param("id")
+
+	if err := initializers.DB.First(&hospital, id).Error; err != nil {
+		if err == gorm.ErrRecordNotFound {
+			c.JSON(http.StatusNotFound, gin.H{"error": "Hospital not found"})
+		} else {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to fetch hospital"})
+		}
+		return
+	}
+	if err := c.ShouldBindJSON(&hospital); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid input"})
+		return
+	}
+
+	if err := initializers.DB.Save(&hospital).Error; err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to update hospital"})
+		return
+	}
+
+	c.JSON(http.StatusOK, hospital)
+}
+
+func DeleteHospitalById(c *gin.Context) {
+	var hospital models.Hospital
+
+	id := c.Param("id")
+
+	if err := initializers.DB.First(&hospital, id).Error; err != nil {
+		if err == gorm.ErrRecordNotFound {
+			c.JSON(http.StatusNotFound, gin.H{"error": "Hospital doesn't exist"})
+		} else {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to fetch hospital"})
+		}
+		return
+	}
+
+	if err := initializers.DB.Delete(&hospital, id).Error; err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to delete hospital"})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{"message": "Hospital deleted successfully"})
+}
