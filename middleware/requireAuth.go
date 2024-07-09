@@ -12,53 +12,65 @@ import (
 	"github.com/golang-jwt/jwt/v4"
 )
 
+const CurrentUser = "currentUser"
+
 func RequireAuth(c *gin.Context) {
 
-	fmt.Println("In Middleware")
-
-	// Get the cookie of req
 	tokenString, err := c.Cookie("Authorization")
 	if err != nil {
 		c.AbortWithStatus(http.StatusUnauthorized)
 		return
 	}
 
-	// Decode/validate it 
 	token, err := jwt.Parse(tokenString, func(token *jwt.Token) (interface{}, error) {
+
 		if _, ok := token.Method.(*jwt.SigningMethodHMAC); !ok {
 			return nil, fmt.Errorf("unexpected signing method: %v", token.Header["alg"])
 		}
 		return []byte(os.Getenv("SECRET_KEY")), nil
 	})
 
-	if err != nil {
+	if err != nil || !token.Valid {
 		c.AbortWithStatus(http.StatusUnauthorized)
 		return
 	}
 
-	if claims, ok := token.Claims.(jwt.MapClaims); ok && token.Valid {
-
-		// Check the expiration
-		if float64(time.Now().Unix()) > claims["exp"].(float64) {
-			c.AbortWithStatus(http.StatusUnauthorized)
-			return
-		}
-
-		// Find the user with token sub
-		var user models.User
-		initializers.DB.First(&user, claims["sub"])
-
-		if user.ID == 0 {
-			c.AbortWithStatus(http.StatusUnauthorized)
-			return
-		}
-
-		// Attach to req
-		c.Set("user", user)
-
-		// Continue
-		c.Next()
-	} else {
+	claims, ok := token.Claims.(jwt.MapClaims)
+	if !ok {
 		c.AbortWithStatus(http.StatusUnauthorized)
+		return
 	}
+
+	// Check token expiration
+	exp, ok := claims["exp"].(float64)
+	if !ok || float64(time.Now().Unix()) > exp {
+		c.AbortWithStatus(http.StatusUnauthorized)
+		return
+	}
+
+	// Find user by token subject
+	sub, ok := claims["sub"].(float64)
+	if !ok {
+		c.AbortWithStatus(http.StatusUnauthorized)
+		return
+	}
+
+	var user models.User
+	if err := initializers.DB.First(&user, int(sub)).Error; err != nil {
+		c.AbortWithStatus(http.StatusUnauthorized)
+		return
+	}
+
+	c.Set(CurrentUser, user)
+
+	// Set role flags in context
+	isAdmin, _ := claims["is_admin"].(bool)
+	isHospitalAdmin, _ := claims["is_hospital_admin"].(bool)
+	hospitalID, _ := claims["hospital_id"].(float64)
+
+	c.Set("is_admin", isAdmin)
+	c.Set("is_hospital_admin", isHospitalAdmin)
+	c.Set("hospital_id", uint(hospitalID))
+
+	c.Next()
 }

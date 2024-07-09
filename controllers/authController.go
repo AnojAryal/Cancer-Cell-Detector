@@ -39,6 +39,14 @@ func Login(c *gin.Context) {
 		return
 	}
 
+	// Check if the user's email is verified
+	if !user.IsVerified {
+		c.JSON(http.StatusBadRequest, gin.H{
+			"error": "Email not verified. Please verify your email and try again.",
+		})
+		return
+	}
+
 	//compare sent pass with saved user hash pass
 	err := bcrypt.CompareHashAndPassword([]byte(user.Password), []byte(body.Password))
 
@@ -52,8 +60,11 @@ func Login(c *gin.Context) {
 
 	//generate jwt token
 	token := jwt.NewWithClaims(jwt.SigningMethodHS256, jwt.MapClaims{
-		"sub": user.ID,
-		"exp": time.Now().Add(time.Hour * 24 * 30).Unix(),
+		"sub":               user.ID,
+		"is_admin":          user.IsAdmin,
+		"hospital_id":       user.HospitalID,
+		"is_hospital_admin": user.IsHospitalAdmin,
+		"exp":               time.Now().Add(time.Hour * 24).Unix(),
 	})
 
 	tokenString, err := token.SignedString([]byte(os.Getenv("SECRET_KEY")))
@@ -67,7 +78,7 @@ func Login(c *gin.Context) {
 	}
 	//sent it back
 	c.SetSameSite(http.SameSiteLaxMode)
-	c.SetCookie("Authorization", tokenString, 3600*24*30, "", "", false, true)
+	c.SetCookie("Authorization", tokenString, 3600*24, "", "", false, true)
 
 	c.JSON(http.StatusOK, gin.H{
 		// "token" : tokenString,

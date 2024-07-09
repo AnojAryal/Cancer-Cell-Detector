@@ -15,7 +15,7 @@ import (
 
 var SECRET_KEY = os.Getenv("SECRET_KEY")
 
-func SignUp(c *gin.Context) {
+func UserCreate(c *gin.Context) {
 	var body struct {
 		Email           string
 		Username        string
@@ -153,4 +153,18 @@ func VerifyUserEmail(c *gin.Context) {
 	}
 
 	c.JSON(http.StatusOK, gin.H{"message": "Email verified successfully"})
+}
+
+func GetCurrentUser(c *gin.Context) {
+	// Retrieve current user from context
+	currentUser, exists := c.Get("currentUser")
+	if !exists {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "User not authenticated"})
+		return
+	}
+	user := currentUser.(models.User)
+
+	c.JSON(http.StatusOK, gin.H{
+		"message": "Current user is: " + user.Username,
+	})
 }
