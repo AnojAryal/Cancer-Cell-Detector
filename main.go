@@ -22,6 +22,8 @@ func main() {
 	r.POST("/hospitals", controllers.CreateHospital)
 	r.GET("/hospitals", controllers.GetHospitals)
 	r.GET("/hospitals/:id", controllers.GetHospitalById)
+	r.PUT("/hospitals/:id", controllers.UpdateHospitalById)
+	r.DELETE("/hospitals/:id", controllers.DeleteHospitalById)
 
 	r.Run()
 }
