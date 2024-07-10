@@ -48,19 +48,13 @@ func CreateHospital(c *gin.Context) {
 	})
 }
 
-// fetching all hospitals
-func GetHospitals(c *gin.Context) {
+// get all hospitals
+func GetAllHospitals(c *gin.Context) {
 	var hospitals []models.Hospital
-
-	// Fetch hospitals from database
-	result := initializers.DB.Find(&hospitals)
-	if result.Error != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{
-			"error": "Failed to fetch hospitals",
-		})
+	if result := initializers.DB.Preload("Users").Preload("Patients").Find(&hospitals); result.Error != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to retrieve hospitals"})
 		return
 	}
-
 	c.JSON(http.StatusOK, hospitals)
 }
 

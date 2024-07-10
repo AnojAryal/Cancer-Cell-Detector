@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"net/http"
 	"os"
+	"strconv"
 	"time"
 
 	"github.com/anojaryal/Cancer-Cell-Detector/initializers"
@@ -11,6 +12,7 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/golang-jwt/jwt/v4"
 	"golang.org/x/crypto/bcrypt"
+	"gorm.io/gorm"
 )
 
 var SECRET_KEY = os.Getenv("SECRET_KEY")
@@ -110,6 +112,117 @@ func UserCreate(c *gin.Context) {
 	})
 }
 
+// get all users
+func GetAllUsers(c *gin.Context) {
+	var users []models.User
+	if result := initializers.DB.Preload("Hospital").Find(&users); result.Error != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to retrieve users"})
+		return
+	}
+	c.JSON(http.StatusOK, users)
+}
+
+// get user by id
+func GetUserByID(c *gin.Context) {
+	idParam := c.Param("id")
+	id, err := strconv.Atoi(idParam)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid user ID"})
+		return
+	}
+
+	var user models.User
+	if result := initializers.DB.Preload("Hospital").First(&user, id); result.Error != nil {
+		c.JSON(http.StatusNotFound, gin.H{"error": "User not found"})
+		return
+	}
+
+	c.JSON(http.StatusOK, user)
+}
+
+// update user
+func PatchUserByID(c *gin.Context) {
+	idParam := c.Param("id")
+	id, err := strconv.Atoi(idParam)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid user ID"})
+		return
+	}
+
+	var update_user struct {
+		Username   *string
+		Email      *string
+		FullName   *string
+		Address    *string
+		BloodGroup *string
+		Gender     *string
+		ContactNo  *string
+	}
+
+	if err := c.BindJSON(&update_user); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Failed to read body"})
+		return
+	}
+
+	var user models.User
+	if result := initializers.DB.First(&user, id); result.Error != nil {
+		c.JSON(http.StatusNotFound, gin.H{"error": "User not found"})
+		return
+	}
+
+	if update_user.Username != nil {
+		user.Username = *update_user.Username
+	}
+	if update_user.Email != nil {
+		user.Email = *update_user.Email
+	}
+	if update_user.FullName != nil {
+		user.FullName = *update_user.FullName
+	}
+	if update_user.Address != nil {
+		user.Address = *update_user.Address
+	}
+	if update_user.BloodGroup != nil {
+		user.BloodGroup = *update_user.BloodGroup
+	}
+	if update_user.Gender != nil {
+		user.Gender = *update_user.Gender
+	}
+	if update_user.ContactNo != nil {
+		user.ContactNo = *update_user.ContactNo
+	}
+
+	if result := initializers.DB.Save(&user); result.Error != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to update user"})
+		return
+	}
+
+	c.JSON(http.StatusOK, user)
+}
+
+// delete user
+func DeleteUserById(c *gin.Context) {
+	var user models.User
+
+	id := c.Param("id")
+
+	if err := initializers.DB.First(&user, id).Error; err != nil {
+		if err == gorm.ErrRecordNotFound {
+			c.JSON(http.StatusNotFound, gin.H{"error": "user doesn't exist"})
+		} else {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to fetch user"})
+		}
+		return
+	}
+
+	if err := initializers.DB.Delete(&user, id).Error; err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to delete user"})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{"message": "user deleted successfully"})
+}
+
 // VerifyUserEmail
 func VerifyUserEmail(c *gin.Context) {
 	token := c.Param("token")
@@ -155,8 +268,9 @@ func VerifyUserEmail(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{"message": "Email verified successfully"})
 }
 
+// Retrieve current user from context
 func GetCurrentUser(c *gin.Context) {
-	// Retrieve current user from context
+
 	currentUser, exists := c.Get("currentUser")
 	if !exists {
 		c.JSON(http.StatusUnauthorized, gin.H{"error": "User not authenticated"})
