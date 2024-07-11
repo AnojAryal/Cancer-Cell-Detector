@@ -42,7 +42,7 @@ func sendVerificationEmail(email, token string) error {
 }
 
 func sendPasswordResetEmail(email, token string) error {
-	resetLink := fmt.Sprintf("http://localhost:3000/reset-password?token=%s", token)
+	resetLink := fmt.Sprintf("http://localhost:3000/reset-password/%s", token)
 	subject := "Password Reset"
 	body := fmt.Sprintf("Hi,\n\nYou have requested to reset your password. Please click on the following link to reset your password:\n%s\n\nIf you didn't request this, you can safely ignore this email.\n\nThank you!", resetLink)
 	return sendEmail([]string{email}, subject, body)
