@@ -1,4 +1,4 @@
-package controllers
+package utils
 
 import (
 	"fmt"
@@ -34,14 +34,14 @@ func sendEmail(to []string, subject, body string) error {
 	return nil
 }
 
-func sendVerificationEmail(email, token string) error {
+func SendVerificationEmail(email, token string) error {
 	verificationLink := fmt.Sprintf("http://localhost:3000/users/verify/%s", token)
 	subject := "Verify your email"
 	body := fmt.Sprintf("Hi,\n\nYour account has been registered in our system. Please click the following link to verify your email:\n%s\n\nThank you!", verificationLink)
 	return sendEmail([]string{email}, subject, body)
 }
 
-func sendPasswordResetEmail(email, token string) error {
+func SendPasswordResetEmail(email, token string) error {
 	resetLink := fmt.Sprintf("http://localhost:3000/reset-password/%s", token)
 	subject := "Password Reset"
 	body := fmt.Sprintf("Hi,\n\nYou have requested to reset your password. Please click on the following link to reset your password:\n%s\n\nIf you didn't request this, you can safely ignore this email.\n\nThank you!", resetLink)

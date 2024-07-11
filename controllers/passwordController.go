@@ -7,6 +7,7 @@ import (
 
 	"github.com/anojaryal/Cancer-Cell-Detector/initializers"
 	"github.com/anojaryal/Cancer-Cell-Detector/models"
+	"github.com/anojaryal/Cancer-Cell-Detector/utils"
 	"github.com/gin-gonic/gin"
 	"github.com/golang-jwt/jwt/v4"
 	"golang.org/x/crypto/bcrypt"
@@ -101,7 +102,7 @@ func SendResetEmail(c *gin.Context) {
 	}
 
 	go func(email, token string) {
-		err := sendPasswordResetEmail(email, token)
+		err := utils.SendPasswordResetEmail(email, token)
 		if err != nil {
 			fmt.Println("Failed to send reset token:", err)
 		}
