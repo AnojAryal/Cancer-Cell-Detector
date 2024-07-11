@@ -30,6 +30,8 @@ func main() {
 	r.DELETE("/hospitals/:id", controllers.DeleteHospitalById)
 	r.PUT("/password-change", middleware.RequireAuth, controllers.ChangePassword)
 	r.GET("/current-user", middleware.RequireAuth, controllers.GetCurrentUser)
+	r.POST("/send-reset-email", controllers.SendResetEmail)
+	r.POST("/reset-password", controllers.ResetPassword)
 
 	r.Run()
 }
