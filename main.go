@@ -1,9 +1,8 @@
 package main
 
 import (
-	"github.com/anojaryal/Cancer-Cell-Detector/controllers"
 	"github.com/anojaryal/Cancer-Cell-Detector/initializers"
-	"github.com/anojaryal/Cancer-Cell-Detector/middleware"
+	"github.com/anojaryal/Cancer-Cell-Detector/routes"
 	"github.com/gin-gonic/gin"
 )
 
@@ -15,11 +14,11 @@ func init() {
 
 func main() {
 	r := gin.Default()
-	r.POST("/signup", controllers.SignUp)
-	r.POST("/login", controllers.Login)
-	r.GET("/validate", middleware.RequireAuth, controllers.Validate)
-	r.POST("/hospitals", controllers.CreateHospital)
-	r.GET("/hospitals", controllers.GetHospitals)
+
+	routes.UserRoutes(r)
+	routes.HospitalRoutes(r)
+	routes.PasswordHandlerRoutes(r)
+	routes.PatientRoutes(r)
 
 	r.Run()
 }

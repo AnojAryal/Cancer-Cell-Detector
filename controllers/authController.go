@@ -12,11 +12,10 @@ import (
 	"golang.org/x/crypto/bcrypt"
 )
 
-
 func Login(c *gin.Context) {
 	//get the email and pass of the req body
 	var body struct {
-		Email string
+		Email    string
 		Password string
 	}
 
@@ -25,9 +24,8 @@ func Login(c *gin.Context) {
 			"error": "Failed to read body",
 		})
 
-		return 
+		return
 	}
-
 
 	//Look up requested user
 	var user models.User
@@ -38,9 +36,16 @@ func Login(c *gin.Context) {
 			"error": "Invalid email or password",
 		})
 
-		return 
+		return
 	}
 
+	// Check if the user's email is verified
+	if !user.IsVerified {
+		c.JSON(http.StatusBadRequest, gin.H{
+			"error": "Email not verified. Please verify your email and try again.",
+		})
+		return
+	}
 
 	//compare sent pass with saved user hash pass
 	err := bcrypt.CompareHashAndPassword([]byte(user.Password), []byte(body.Password))
@@ -53,14 +58,16 @@ func Login(c *gin.Context) {
 		return
 	}
 
-
 	//generate jwt token
 	token := jwt.NewWithClaims(jwt.SigningMethodHS256, jwt.MapClaims{
-		"sub" : user.ID,
-		"exp" : time.Now().Add(time.Hour * 24 * 30).Unix(),
+		"sub":               user.ID,
+		"is_admin":          user.IsAdmin,
+		"hospital_id":       user.HospitalID,
+		"is_hospital_admin": user.IsHospitalAdmin,
+		"exp":               time.Now().Add(time.Hour * 24).Unix(),
 	})
 
-	tokenString, err:=  token.SignedString([]byte(os.Getenv("SECRET_KEY")))
+	tokenString, err := token.SignedString([]byte(os.Getenv("SECRET_KEY")))
 
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{
@@ -69,12 +76,9 @@ func Login(c *gin.Context) {
 
 		return
 	}
-
-
-
 	//sent it back
 	c.SetSameSite(http.SameSiteLaxMode)
-	c.SetCookie("Authorization", tokenString, 3600 * 24 * 30, "", "", false, true)
+	c.SetCookie("Authorization", tokenString, 3600*24, "", "", false, true)
 
 	c.JSON(http.StatusOK, gin.H{
 		// "token" : tokenString,
@@ -82,9 +86,12 @@ func Login(c *gin.Context) {
 }
 
 func Validate(c *gin.Context) {
-	user, _ := c.Get("user")
-
+	user, exists := c.Get("user")
+	if !exists {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "Unauthorized"})
+		return
+	}
 	c.JSON(http.StatusOK, gin.H{
-		"message": "Hello, " + user.(string) + "you are logged in",
+		"message": "Hello, " + user.(models.User).Username + ", you are logged in",
 	})
 }
