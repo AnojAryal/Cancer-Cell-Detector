@@ -18,6 +18,7 @@ func main() {
 	routes.UserRoutes(r)
 	routes.HospitalRoutes(r)
 	routes.PasswordHandlerRoutes(r)
+	routes.PatientRoutes(r)
 
 	r.Run()
 }
