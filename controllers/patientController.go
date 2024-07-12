@@ -8,6 +8,7 @@ import (
 	"github.com/anojaryal/Cancer-Cell-Detector/initializers"
 	"github.com/anojaryal/Cancer-Cell-Detector/models"
 	"github.com/gin-gonic/gin"
+	"github.com/google/uuid"
 )
 
 // CreatePatient
@@ -101,5 +102,48 @@ func GetPatients(c *gin.Context) {
 
 	c.JSON(http.StatusOK, gin.H{
 		"patients": patients,
+	})
+}
+
+// GetPatient by id
+func GetPatientById(c *gin.Context) {
+	hospitalIDStr := c.Param("hospital_id")
+	hospitalID, err := strconv.Atoi(hospitalIDStr)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{
+			"error": "Invalid hospital ID",
+		})
+		return
+	}
+
+	patientIDStr := c.Param("patient_id")
+	patientID, err := uuid.Parse(patientIDStr)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{
+			"error": "Invalid patient ID",
+		})
+		return
+	}
+
+	// Check if the hospital exists
+	var hospital models.Hospital
+	if err := initializers.DB.First(&hospital, hospitalID).Error; err != nil {
+		c.JSON(http.StatusNotFound, gin.H{
+			"error": "Hospital not found",
+		})
+		return
+	}
+
+	// Fetch the patient for the hospital
+	var patient models.Patient
+	if err := initializers.DB.Where("hospital_id = ? AND id = ?", hospitalID, patientID).First(&patient).Error; err != nil {
+		c.JSON(http.StatusNotFound, gin.H{
+			"error": "Patient not found",
+		})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"patient": patient,
 	})
 }
