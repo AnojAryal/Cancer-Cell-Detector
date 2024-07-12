@@ -147,3 +147,76 @@ func GetPatientById(c *gin.Context) {
 		"patient": patient,
 	})
 }
+
+// UpdatePatient by id
+func UpdatePatientById(c *gin.Context) {
+	hospitalIDStr := c.Param("hospital_id")
+	hospitalID, err := strconv.Atoi(hospitalIDStr)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{
+			"error": "Invalid hospital ID",
+		})
+		return
+	}
+
+	patientIDStr := c.Param("patient_id")
+	patientID, err := uuid.Parse(patientIDStr)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{
+			"error": "Invalid patient ID",
+		})
+		return
+	}
+
+	var patientUpdate struct {
+		FirstName string    `json:"first_name"`
+		LastName  string    `json:"last_name"`
+		Email     string    `json:"email"`
+		Phone     string    `json:"phone"`
+		BirthDate time.Time `json:"birth_date"`
+	}
+
+	if err := c.BindJSON(&patientUpdate); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{
+			"error": "Failed to read body",
+		})
+		return
+	}
+
+	// Check if the hospital exists
+	var hospital models.Hospital
+	if err := initializers.DB.First(&hospital, hospitalID).Error; err != nil {
+		c.JSON(http.StatusNotFound, gin.H{
+			"error": "Hospital not found",
+		})
+		return
+	}
+
+	// Fetch the patient for the hospital
+	var patient models.Patient
+	if err := initializers.DB.Where("hospital_id = ? AND id = ?", hospitalID, patientID).First(&patient).Error; err != nil {
+		c.JSON(http.StatusNotFound, gin.H{
+			"error": "Patient not found",
+		})
+		return
+	}
+
+	// Update patient fields
+	patient.FirstName = patientUpdate.FirstName
+	patient.LastName = patientUpdate.LastName
+	patient.Email = patientUpdate.Email
+	patient.Phone = patientUpdate.Phone
+	patient.BirthDate = patientUpdate.BirthDate
+
+	if result := initializers.DB.Save(&patient); result.Error != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{
+			"error": "Failed to update patient",
+		})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"message": "Patient updated successfully",
+		"patient": patient,
+	})
+}

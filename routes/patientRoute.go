@@ -10,5 +10,6 @@ func PatientRoutes(r *gin.Engine) {
 	r.POST("/hospital/:hospital_id/patient", controllers.CreatePatient)
 	r.GET("/hospital/:hospital_id/patients", controllers.GetPatients)
 	r.GET("/hospital/:hospital_id/patient/:patient_id", controllers.GetPatientById)
+	r.PUT("/hospital/:hospital_id/patient/:patient_id", controllers.UpdatePatientById)
 
 }
