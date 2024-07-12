@@ -9,9 +9,9 @@ import (
 
 	"github.com/anojaryal/Cancer-Cell-Detector/initializers"
 	"github.com/anojaryal/Cancer-Cell-Detector/models"
+	"github.com/anojaryal/Cancer-Cell-Detector/utils"
 	"github.com/gin-gonic/gin"
 	"github.com/golang-jwt/jwt/v4"
-	"golang.org/x/crypto/bcrypt"
 	"gorm.io/gorm"
 )
 
@@ -55,11 +55,9 @@ func UserCreate(c *gin.Context) {
 		return
 	}
 
-	hash, err := bcrypt.GenerateFromPassword([]byte(body.Password), 10)
+	hashedPassword, err := utils.HashPassword(body.Password)
 	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{
-			"error": "Failed to hash password",
-		})
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Failed to hash password"})
 		return
 	}
 
@@ -71,7 +69,7 @@ func UserCreate(c *gin.Context) {
 		BloodGroup:      body.BloodGroup,
 		Gender:          body.Gender,
 		ContactNo:       body.ContactNo,
-		Password:        string(hash),
+		Password:        string(hashedPassword),
 		IsVerified:      false,
 		IsAdmin:         body.IsAdmin,
 		IsHospitalAdmin: body.IsHospitalAdmin,
@@ -101,7 +99,7 @@ func UserCreate(c *gin.Context) {
 	}
 
 	go func(email, token string) {
-		err := sendVerificationEmail(email, token)
+		err := utils.SendVerificationEmail(email, token)
 		if err != nil {
 			fmt.Println("Failed to send verification email:", err)
 		}
