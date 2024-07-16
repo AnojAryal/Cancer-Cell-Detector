@@ -125,3 +125,86 @@ func GetCellTests(c *gin.Context) {
 		"celltest": celltest,
 	})
 }
+
+// Update Celltest
+func UpdateCelltest(c *gin.Context) {
+	hospitalIDStr := c.Param("hospital_id")
+	hospitalID, err := strconv.Atoi(hospitalIDStr)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{
+			"error": "Invalid hospital ID",
+		})
+		return
+	}
+
+	patientIDStr := c.Param("patient_id")
+	patientID, err := uuid.Parse(patientIDStr)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{
+			"error": "Invalid patient ID",
+		})
+		return
+	}
+
+	celltestIDStr := c.Param("celltest_id")
+	celltestID, err := uuid.Parse(celltestIDStr)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{
+			"error": "Invalid celltest ID",
+		})
+		return
+	}
+
+	var hospital models.Hospital
+	if err := initializers.DB.First(&hospital, hospitalID).Error; err != nil {
+		c.JSON(http.StatusNotFound, gin.H{
+			"error": "Hospital not found",
+		})
+		return
+	}
+
+	var patient models.Patient
+	if err := initializers.DB.Where("hospital_id = ? AND id = ?", hospitalID, patientID).First(&patient).Error; err != nil {
+		c.JSON(http.StatusNotFound, gin.H{
+			"error": "Patient not found",
+		})
+		return
+	}
+
+	var celltest models.CellTest
+	if err := initializers.DB.Where("patient_id = ? AND id = ?", patientID, celltestID).First(&celltest).Error; err != nil {
+		c.JSON(http.StatusNotFound, gin.H{
+			"error": "Celltest not found",
+		})
+		return
+	}
+
+	var celltest_update struct {
+		Title           string `json:"Title"`
+		Description     string `json:"Description"`
+		DetectionStatus string `json:"DetectionStatus"`
+		PatientID       int    `json:"PatientID"`
+	}
+	if err := c.BindJSON(&celltest_update); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{
+			"error": "Failed to read body",
+		})
+		return
+	}
+
+	celltest.Title = celltest_update.Title
+	celltest.Description = celltest_update.Description
+	celltest.DetectionStatus = celltest_update.DetectionStatus
+
+	if err := initializers.DB.Save(&celltest).Error; err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{
+			"error": "Failed to update celltest",
+		})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"message":  "celltest updated successfully",
+		"celltest": celltest,
+	})
+}

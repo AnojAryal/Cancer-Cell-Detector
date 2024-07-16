@@ -9,5 +9,6 @@ func CellTestRoutes(r *gin.Engine) {
 
 	r.POST("/hospital/:hospital_id/patient/:patient_id/celltest", controllers.CreateCellTest)
 	r.GET("/hospital/:hospital_id/patient/:patient_id/celltest", controllers.GetCellTests)
+	r.PUT("/hospital/:hospital_id/patient/:patient_id/celltest/:celltest_id", controllers.UpdateCelltest)
 
 }
