@@ -19,6 +19,7 @@ func main() {
 	routes.HospitalRoutes(r)
 	routes.PasswordHandlerRoutes(r)
 	routes.PatientRoutes(r)
+	routes.CellTestRoutes(r)
 
 	r.Run()
 }
