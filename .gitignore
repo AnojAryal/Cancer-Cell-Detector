@@ -76,3 +76,6 @@ tests/
 
 # Ignore specific compiled file
 Cancer-Cell-Detector
+
+#image folder
+media/
