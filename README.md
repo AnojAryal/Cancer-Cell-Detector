@@ -2,7 +2,7 @@
 
 ## Overview
 
-This project is a backend API for a Cancer Cell Detector application, built using [Golang](https://go.dev/learn/) with the Gin framework. The API processes medical imaging data to detect cancer cells using machine learning models.
+This project is a backend API for a Cancer Cell Detector application, built using [Golang](https://go.dev/learn/) with the [Gin](https://gin-gonic.com/) framework. The API processes medical imaging data to detect cancer cells using machine learning models.
 
 ## Features
 
