@@ -427,3 +427,83 @@ func GetImageData(c *gin.Context) {
 		"data":    imageData,
 	})
 }
+
+// PostResult
+func PostResult(c *gin.Context) {
+	hospitalIDStr := c.Param("hospital_id")
+	hospitalID, err := strconv.Atoi(hospitalIDStr)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{
+			"error": "Invalid hospital ID",
+		})
+		return
+	}
+
+	patientIDStr := c.Param("patient_id")
+	patientID, err := uuid.Parse(patientIDStr)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{
+			"error": "Invalid patient ID",
+		})
+		return
+	}
+
+	celltestIDStr := c.Param("celltest_id")
+	celltestID, err := uuid.Parse(celltestIDStr)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{
+			"error": "Invalid cell test ID",
+		})
+		return
+	}
+
+	var hospital models.Hospital
+	if err := initializers.DB.First(&hospital, hospitalID).Error; err != nil {
+		c.JSON(http.StatusNotFound, gin.H{
+			"error": "Hospital not found",
+		})
+		return
+	}
+
+	var patient models.Patient
+	if err := initializers.DB.Where("hospital_id = ? AND id = ?", hospitalID, patientID).First(&patient).Error; err != nil {
+		c.JSON(http.StatusNotFound, gin.H{
+			"error": "Patient not found",
+		})
+		return
+	}
+
+	var celltest models.CellTest
+	if err := initializers.DB.Where("patient_id = ? AND id = ?", patientID, celltestID).First(&celltest).Error; err != nil {
+		c.JSON(http.StatusNotFound, gin.H{
+			"error": "Cell test not found",
+		})
+		return
+	}
+
+	var result struct {
+		Description string `json:"Description"`
+	}
+
+	if err := c.BindJSON(&result); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{
+			"error": "Failed to read body",
+		})
+		return
+	}
+	new_result := models.Result{
+		Description: result.Description,
+		CellTestID:  celltestID,
+	}
+	if err := initializers.DB.Create(&new_result).Error; err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{
+			"error": "Failed to save data",
+		})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"message": "Created",
+		"data":    new_result,
+	})
+}
