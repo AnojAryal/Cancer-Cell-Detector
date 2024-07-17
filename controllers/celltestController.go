@@ -507,3 +507,61 @@ func PostResult(c *gin.Context) {
 		"data":    new_result,
 	})
 }
+
+// Get result based on hospital ID, patient ID, and cell test ID
+func GetResult(c *gin.Context) {
+	hospitalIDStr := c.Param("hospital_id")
+	hospitalID, err := strconv.Atoi(hospitalIDStr)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{
+			"error": "Invalid hospital ID",
+		})
+		return
+	}
+
+	patientIDStr := c.Param("patient_id")
+	patientID, err := uuid.Parse(patientIDStr)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{
+			"error": "Invalid patient ID",
+		})
+		return
+	}
+
+	celltestIDStr := c.Param("celltest_id")
+	celltestID, err := uuid.Parse(celltestIDStr)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{
+			"error": "Invalid cell test ID",
+		})
+		return
+	}
+
+	var hospital models.Hospital
+	if err := initializers.DB.First(&hospital, hospitalID).Error; err != nil {
+		c.JSON(http.StatusNotFound, gin.H{
+			"error": "Hospital not found",
+		})
+		return
+	}
+
+	var patient models.Patient
+	if err := initializers.DB.Where("hospital_id = ? AND id = ?", hospitalID, patientID).First(&patient).Error; err != nil {
+		c.JSON(http.StatusNotFound, gin.H{
+			"error": "Patient not found",
+		})
+		return
+	}
+
+	var result models.Result
+	if err := initializers.DB.Where("cell_test_id = ?", celltestID).First(&result).Error; err != nil {
+		c.JSON(http.StatusNotFound, gin.H{
+			"error": "Result not found",
+		})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"data": result,
+	})
+}
