@@ -3,7 +3,6 @@ package controllers
 import (
 	"net/http"
 	"strconv"
-	"time"
 
 	"github.com/anojaryal/Cancer-Cell-Detector/initializers"
 	"github.com/anojaryal/Cancer-Cell-Detector/models"
@@ -11,16 +10,8 @@ import (
 	"github.com/google/uuid"
 )
 
-// CreatePatient
-func CreatePatient(c *gin.Context) {
-	var patientCreate struct {
-		FirstName string    `json:"first_name"`
-		LastName  string    `json:"last_name"`
-		Email     string    `json:"email"`
-		Phone     string    `json:"phone"`
-		BirthDate time.Time `json:"birth_date"`
-	}
-
+// adding an address to a patient
+func AddPatientAddress(c *gin.Context) {
 	hospitalIDStr := c.Param("hospital_id")
 	hospitalID, err := strconv.Atoi(hospitalIDStr)
 	if err != nil {
@@ -30,7 +21,15 @@ func CreatePatient(c *gin.Context) {
 		return
 	}
 
-	// Check if the hospital exists
+	patientIDStr := c.Param("patient_id")
+	patientID, err := uuid.Parse(patientIDStr)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{
+			"error": "Invalid patient ID",
+		})
+		return
+	}
+
 	var hospital models.Hospital
 	if err := initializers.DB.First(&hospital, hospitalID).Error; err != nil {
 		c.JSON(http.StatusNotFound, gin.H{
@@ -39,74 +38,44 @@ func CreatePatient(c *gin.Context) {
 		return
 	}
 
-	if err := c.BindJSON(&patientCreate); err != nil {
+	var patient models.Patient
+	if err := initializers.DB.Where("hospital_id = ? AND id = ?", hospitalID, patientID).First(&patient).Error; err != nil {
+		c.JSON(http.StatusNotFound, gin.H{
+			"error": "Patient not found",
+		})
+		return
+	}
+
+	var address struct {
+		Street string `json:"street"`
+		City   string `json:"city"`
+	}
+	if err := c.BindJSON(&address); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{
 			"error": "Failed to read body",
 		})
 		return
 	}
-
-	// Create a patient instance
-	patient := models.Patient{
-		FirstName:  patientCreate.FirstName,
-		LastName:   patientCreate.LastName,
-		Email:      patientCreate.Email,
-		Phone:      patientCreate.Phone,
-		BirthDate:  patientCreate.BirthDate,
-		HospitalID: uint(hospitalID),
+	newAddress := models.Address{
+		Street:    address.Street,
+		City:      address.City,
+		PatientID: patientID,
 	}
 
-	result := initializers.DB.Create(&patient)
-	if result.Error != nil {
-		c.JSON(http.StatusBadRequest, gin.H{
-			"error": "Failed to create patient",
+	if err := initializers.DB.Create(&newAddress).Error; err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{
+			"error": "Failed to create address",
 		})
 		return
 	}
-
 	c.JSON(http.StatusCreated, gin.H{
-		"message": "Patient created successfully",
-		"patient": patient,
+		"message": "Address added successfully",
+		"address": newAddress,
 	})
 }
 
-// GetPatients
-func GetPatients(c *gin.Context) {
-	hospitalIDStr := c.Param("hospital_id")
-	hospitalID, err := strconv.Atoi(hospitalIDStr)
-	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{
-			"error": "Invalid hospital ID",
-		})
-		return
-	}
-
-	// Check if the hospital exists
-	var hospital models.Hospital
-	if err := initializers.DB.First(&hospital, hospitalID).Error; err != nil {
-		c.JSON(http.StatusNotFound, gin.H{
-			"error": "Hospital not found",
-		})
-		return
-	}
-
-	// Fetch patients for the hospital
-	var patients []models.Patient
-	result := initializers.DB.Where("hospital_id = ?", hospitalID).Find(&patients)
-	if result.Error != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{
-			"error": "Failed to fetch patients",
-		})
-		return
-	}
-
-	c.JSON(http.StatusOK, gin.H{
-		"patients": patients,
-	})
-}
-
-// GetPatient by id
-func GetPatientById(c *gin.Context) {
+// GetPatientAddressByID
+func GetPatientAddressById(c *gin.Context) {
 	hospitalIDStr := c.Param("hospital_id")
 	hospitalID, err := strconv.Atoi(hospitalIDStr)
 	if err != nil {
@@ -125,7 +94,15 @@ func GetPatientById(c *gin.Context) {
 		return
 	}
 
-	// Check if the hospital exists
+	addressIDStr := c.Param("address_id")
+	addressID, err := uuid.Parse(addressIDStr)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{
+			"error": "Invalid address ID",
+		})
+		return
+	}
+
 	var hospital models.Hospital
 	if err := initializers.DB.First(&hospital, hospitalID).Error; err != nil {
 		c.JSON(http.StatusNotFound, gin.H{
@@ -134,7 +111,6 @@ func GetPatientById(c *gin.Context) {
 		return
 	}
 
-	// Fetch the patient for the hospital
 	var patient models.Patient
 	if err := initializers.DB.Where("hospital_id = ? AND id = ?", hospitalID, patientID).First(&patient).Error; err != nil {
 		c.JSON(http.StatusNotFound, gin.H{
@@ -143,13 +119,21 @@ func GetPatientById(c *gin.Context) {
 		return
 	}
 
+	var address models.Address
+	if err := initializers.DB.Where("patient_id = ? AND id = ?", patientID, addressID).First(&address).Error; err != nil {
+		c.JSON(http.StatusNotFound, gin.H{
+			"error": "Address not found",
+		})
+		return
+	}
+
 	c.JSON(http.StatusOK, gin.H{
-		"patient": patient,
+		"address": address,
 	})
 }
 
-// UpdatePatient by id
-func UpdatePatientById(c *gin.Context) {
+// UpdateAddress
+func UpdateAddress(c *gin.Context) {
 	hospitalIDStr := c.Param("hospital_id")
 	hospitalID, err := strconv.Atoi(hospitalIDStr)
 	if err != nil {
@@ -168,61 +152,68 @@ func UpdatePatientById(c *gin.Context) {
 		return
 	}
 
-	var patientUpdate struct {
-		FirstName string    `json:"first_name"`
-		LastName  string    `json:"last_name"`
-		Email     string    `json:"email"`
-		Phone     string    `json:"phone"`
-		BirthDate time.Time `json:"birth_date"`
+	addressIDStr := c.Param("address_id")
+	addressID, err := uuid.Parse(addressIDStr)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{
+			"error": "Invalid address ID",
+		})
+		return
 	}
 
-	if err := c.BindJSON(&patientUpdate); err != nil {
+	var hospital models.Hospital
+	if err := initializers.DB.First(&hospital, hospitalID).Error; err != nil {
+		c.JSON(http.StatusNotFound, gin.H{
+			"error": "Hospital not found",
+		})
+		return
+	}
+
+	var patient models.Patient
+	if err := initializers.DB.Where("hospital_id = ? AND id = ?", hospitalID, patientID).First(&patient).Error; err != nil {
+		c.JSON(http.StatusNotFound, gin.H{
+			"error": "Patient not found",
+		})
+		return
+	}
+
+	var address models.Address
+	if err := initializers.DB.Where("patient_id = ? AND id = ?", patientID, addressID).First(&address).Error; err != nil {
+		c.JSON(http.StatusNotFound, gin.H{
+			"error": "Address not found",
+		})
+		return
+	}
+
+	var address_update struct {
+		Street string `json:"street"`
+		City   string `json:"city"`
+	}
+	if err := c.BindJSON(&address_update); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{
 			"error": "Failed to read body",
 		})
 		return
 	}
 
-	// Check if the hospital exists
-	var hospital models.Hospital
-	if err := initializers.DB.First(&hospital, hospitalID).Error; err != nil {
-		c.JSON(http.StatusNotFound, gin.H{
-			"error": "Hospital not found",
-		})
-		return
-	}
+	address.Street = address_update.Street
+	address.City = address_update.City
 
-	// Fetch the patient for the hospital
-	var patient models.Patient
-	if err := initializers.DB.Where("hospital_id = ? AND id = ?", hospitalID, patientID).First(&patient).Error; err != nil {
-		c.JSON(http.StatusNotFound, gin.H{
-			"error": "Patient not found",
-		})
-		return
-	}
-
-	// Update patient fields
-	patient.FirstName = patientUpdate.FirstName
-	patient.LastName = patientUpdate.LastName
-	patient.Email = patientUpdate.Email
-	patient.Phone = patientUpdate.Phone
-	patient.BirthDate = patientUpdate.BirthDate
-
-	if result := initializers.DB.Save(&patient); result.Error != nil {
+	if err := initializers.DB.Save(&address).Error; err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{
-			"error": "Failed to update patient",
+			"error": "Failed to update address",
 		})
 		return
 	}
 
 	c.JSON(http.StatusOK, gin.H{
-		"message": "Patient updated successfully",
-		"patient": patient,
+		"message": "Address updated successfully",
+		"address": address,
 	})
 }
 
-// DeletePatient
-func DeletePatientById(c *gin.Context) {
+// DeleteAddress
+func DeleteAddress(c *gin.Context) {
 	hospitalIDStr := c.Param("hospital_id")
 	hospitalID, err := strconv.Atoi(hospitalIDStr)
 	if err != nil {
@@ -241,6 +232,15 @@ func DeletePatientById(c *gin.Context) {
 		return
 	}
 
+	addressIDStr := c.Param("address_id")
+	addressID, err := uuid.Parse(addressIDStr)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{
+			"error": "Invalid address ID",
+		})
+		return
+	}
+
 	var hospital models.Hospital
 	if err := initializers.DB.First(&hospital, hospitalID).Error; err != nil {
 		c.JSON(http.StatusNotFound, gin.H{
@@ -257,14 +257,22 @@ func DeletePatientById(c *gin.Context) {
 		return
 	}
 
-	if err := initializers.DB.Delete(&patient).Error; err != nil {
+	var address models.Address
+	if err := initializers.DB.Where("patient_id = ? AND id = ?", patientID, addressID).First(&address).Error; err != nil {
+		c.JSON(http.StatusNotFound, gin.H{
+			"error": "Address not found",
+		})
+		return
+	}
+
+	if err := initializers.DB.Delete(&address).Error; err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{
-			"error": "Failed to delete patient",
+			"error": "Failed to delete address",
 		})
 		return
 	}
 
 	c.JSON(http.StatusOK, gin.H{
-		"message": "Patient deleted successfully",
+		"message": "Address deleted successfully",
 	})
 }
