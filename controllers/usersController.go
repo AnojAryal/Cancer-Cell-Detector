@@ -18,6 +18,21 @@ import (
 var SECRET_KEY = os.Getenv("SECRET_KEY")
 
 func UserCreate(c *gin.Context) {
+	// Retrieve the current user from the context
+	currentUser, exists := c.Get("currentUser")
+	if !exists {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "Unauthorized"})
+		return
+	}
+
+	user := currentUser.(*models.User)
+
+	// Check if the current user is an admin or hospital admin
+	if !user.IsAdmin && !user.IsHospitalAdmin {
+		c.JSON(http.StatusForbidden, gin.H{"error": "Permission denied"})
+		return
+	}
+
 	var body struct {
 		Email           string
 		Username        string
@@ -33,35 +48,40 @@ func UserCreate(c *gin.Context) {
 		HospitalID      int
 	}
 
-	if err := c.Bind(&body); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{
-			"error": "Failed to read body",
-		})
+	if err := c.ShouldBindJSON(&body); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid input: " + err.Error()})
 		return
 	}
 
 	var existingUser models.User
-	if initializers.DB.Where("username = ?", body.Username).First(&existingUser); existingUser.Username != "" {
-		c.JSON(http.StatusBadRequest, gin.H{
-			"error": "Username already registered",
-		})
+	if err := initializers.DB.Where("username = ?", body.Username).First(&existingUser).Error; err == nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Username already registered"})
 		return
 	}
 
-	if initializers.DB.Where("email = ?", body.Email).First(&existingUser); existingUser.Email != "" {
-		c.JSON(http.StatusBadRequest, gin.H{
-			"error": "Email already registered",
-		})
+	if err := initializers.DB.Where("email = ?", body.Email).First(&existingUser).Error; err == nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Email already registered"})
 		return
 	}
 
 	hashedPassword, err := utils.HashPassword(body.Password)
 	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Failed to hash password"})
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to hash password"})
 		return
 	}
 
-	user := models.User{
+	//Determine hospital_id based on the current user's role
+	hospitalID := 0
+	if user.IsAdmin {
+		hospitalID = body.HospitalID
+	} else {
+		hospitalID = int(user.HospitalID)
+	}
+
+	//Set is_admin to False by default if the current user is not an admin
+	body.IsAdmin = user.IsAdmin
+
+	user = &models.User{
 		Email:           body.Email,
 		Username:        body.Username,
 		FullName:        body.FullName,
@@ -73,14 +93,11 @@ func UserCreate(c *gin.Context) {
 		IsVerified:      false,
 		IsAdmin:         body.IsAdmin,
 		IsHospitalAdmin: body.IsHospitalAdmin,
-		HospitalID:      uint(body.HospitalID),
+		HospitalID:      uint(hospitalID),
 	}
 
-	result := initializers.DB.Create(&user)
-	if result.Error != nil {
-		c.JSON(http.StatusBadRequest, gin.H{
-			"error": "Failed to create user",
-		})
+	if err := initializers.DB.Create(&user).Error; err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to create user"})
 		return
 	}
 
@@ -92,9 +109,7 @@ func UserCreate(c *gin.Context) {
 	token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
 	tokenString, err := token.SignedString([]byte(SECRET_KEY))
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{
-			"error": "Failed to generate token",
-		})
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to generate token"})
 		return
 	}
 
@@ -110,35 +125,90 @@ func UserCreate(c *gin.Context) {
 	})
 }
 
-// get all users
+// GetAllUsers
 func GetAllUsers(c *gin.Context) {
+	currentUser, exists := c.Get("currentUser")
+	if !exists {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "User not authenticated"})
+		return
+	}
+
 	var users []models.User
-	if result := initializers.DB.Preload("Hospital").Find(&users); result.Error != nil {
+	var query *gorm.DB
+
+	// Check if the current user is an admin
+	if currentUser.(*models.User).IsAdmin {
+		query = initializers.DB.Find(&users)
+	} else if currentUser.(*models.User).IsHospitalAdmin {
+		hospitalID := currentUser.(*models.User).HospitalID
+		query = initializers.DB.Where("hospital_id = ?", hospitalID).Find(&users)
+	} else {
+		c.JSON(http.StatusForbidden, gin.H{"error": "Not enough permissions"})
+		return
+	}
+
+	// Execute the query and handle errors
+	if query.Error != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to retrieve users"})
 		return
 	}
+
 	c.JSON(http.StatusOK, users)
 }
 
-// get user by id
+// GetUserByID
 func GetUserByID(c *gin.Context) {
-	idParam := c.Param("id")
-	id, err := strconv.Atoi(idParam)
+
+	userID, err := strconv.Atoi(c.Param("id"))
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid user ID"})
 		return
 	}
 
+	// Retrieve current user from context
+	currentUserInterface, exists := c.Get("currentUser")
+	if !exists {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "User not authenticated"})
+		return
+	}
+
+	// Assert currentUserInterface to models.User
+	currentUser, ok := currentUserInterface.(*models.User)
+	if !ok {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to get current user"})
+		return
+	}
+
+	// Retrieve user from database
 	var user models.User
-	if result := initializers.DB.Preload("Hospital").First(&user, id); result.Error != nil {
+	if err := initializers.DB.First(&user, userID).Error; err != nil {
 		c.JSON(http.StatusNotFound, gin.H{"error": "User not found"})
 		return
 	}
 
-	c.JSON(http.StatusOK, user)
+	// Admin can access all user details
+	if currentUser.IsAdmin {
+		c.JSON(http.StatusOK, user)
+		return
+	}
+
+	// Hospital admin can access only users of their hospital
+	if currentUser.IsHospitalAdmin && currentUser.HospitalID != user.HospitalID {
+		c.JSON(http.StatusForbidden, gin.H{"error": "You do not have permission to access this user's details"})
+		return
+	}
+
+	// Ordinary user can access only their own details
+	if currentUser.ID == uint(userID) {
+		c.JSON(http.StatusOK, user)
+		return
+	}
+
+	c.JSON(http.StatusForbidden, gin.H{"error": "You do not have permission"})
+
 }
 
-// update user
+// PatchUserByID
 func PatchUserByID(c *gin.Context) {
 	idParam := c.Param("id")
 	id, err := strconv.Atoi(idParam)
@@ -148,13 +218,16 @@ func PatchUserByID(c *gin.Context) {
 	}
 
 	var update_user struct {
-		Username   *string
-		Email      *string
-		FullName   *string
-		Address    *string
-		BloodGroup *string
-		Gender     *string
-		ContactNo  *string
+		Username        *string
+		Email           *string
+		FullName        *string
+		Address         *string
+		BloodGroup      *string
+		Gender          *string
+		ContactNo       *string
+		IsHospitalAdmin *bool
+		IsAdmin         *bool
+		HospitalID      *uint
 	}
 
 	if err := c.BindJSON(&update_user); err != nil {
@@ -168,6 +241,27 @@ func PatchUserByID(c *gin.Context) {
 		return
 	}
 
+	// Retrieve current user from context
+	currentUserInterface, exists := c.Get("currentUser")
+	if !exists {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "User not authenticated"})
+		return
+	}
+
+	// Assert currentUserInterface to models.User
+	currentUser, ok := currentUserInterface.(*models.User)
+	if !ok {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to get current user"})
+		return
+	}
+
+	// Only admins or the hospital admin can update a user
+	if !(currentUser.IsAdmin || (currentUser.IsHospitalAdmin && currentUser.HospitalID == user.HospitalID)) {
+		c.JSON(http.StatusForbidden, gin.H{"error": "Not enough permissions"})
+		return
+	}
+
+	// Update fields
 	if update_user.Username != nil {
 		user.Username = *update_user.Username
 	}
@@ -190,6 +284,42 @@ func PatchUserByID(c *gin.Context) {
 		user.ContactNo = *update_user.ContactNo
 	}
 
+	// Admin-specific updates
+	if currentUser.IsAdmin {
+		if update_user.IsHospitalAdmin != nil {
+			user.IsHospitalAdmin = *update_user.IsHospitalAdmin
+		}
+
+		if update_user.IsAdmin != nil {
+			user.IsAdmin = *update_user.IsAdmin
+		}
+
+		if update_user.HospitalID != nil {
+			var hospital models.Hospital
+			if result := initializers.DB.First(&hospital, *update_user.HospitalID); result.Error != nil {
+				c.JSON(http.StatusNotFound, gin.H{"error": "Hospital not found"})
+				return
+			}
+			user.HospitalID = *update_user.HospitalID
+		}
+	}
+
+	// Hospital admin-specific updates
+	if currentUser.IsHospitalAdmin {
+		if update_user.HospitalID != nil && *update_user.HospitalID != currentUser.HospitalID {
+			c.JSON(http.StatusForbidden, gin.H{"error": "Hospital admins cannot change the hospital ID"})
+			return
+		}
+
+		if update_user.IsHospitalAdmin != nil {
+			user.IsHospitalAdmin = *update_user.IsHospitalAdmin
+		}
+
+		if update_user.IsAdmin != nil && !*update_user.IsAdmin {
+			user.IsAdmin = *update_user.IsAdmin
+		}
+	}
+
 	if result := initializers.DB.Save(&user); result.Error != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to update user"})
 		return
@@ -198,27 +328,48 @@ func PatchUserByID(c *gin.Context) {
 	c.JSON(http.StatusOK, user)
 }
 
-// delete user
-func DeleteUserById(c *gin.Context) {
+// delete user by id
+func DeleteUserByID(c *gin.Context) {
 	var user models.User
-
 	id := c.Param("id")
 
+	// Get the current user from context
+	currentUser, exists := c.Get("currentUser")
+	if !exists {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "Unauthorized"})
+		return
+	}
+
+	// Assert the current user to *models.User (pointer to models.User)
+	currentUserObj, ok := currentUser.(*models.User)
+	if !ok {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to get current user"})
+		return
+	}
+
+	// Fetch the user to delete by ID
 	if err := initializers.DB.First(&user, id).Error; err != nil {
 		if err == gorm.ErrRecordNotFound {
-			c.JSON(http.StatusNotFound, gin.H{"error": "user doesn't exist"})
+			c.JSON(http.StatusNotFound, gin.H{"error": "User not found"})
 		} else {
 			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to fetch user"})
 		}
 		return
 	}
 
+	// Only admins or the hospital admin associated with the user's hospital can delete the user
+	if !(currentUserObj.IsAdmin || (currentUserObj.IsHospitalAdmin && currentUserObj.HospitalID == user.HospitalID)) {
+		c.JSON(http.StatusForbidden, gin.H{"error": "Not enough permissions"})
+		return
+	}
+
+	// Delete the user
 	if err := initializers.DB.Delete(&user, id).Error; err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to delete user"})
 		return
 	}
 
-	c.JSON(http.StatusOK, gin.H{"message": "user deleted successfully"})
+	c.JSON(http.StatusOK, gin.H{"message": "User deleted successfully"})
 }
 
 // VerifyUserEmail
@@ -266,16 +417,19 @@ func VerifyUserEmail(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{"message": "Email verified successfully"})
 }
 
-// Retrieve current user from context
+// get current user
 func GetCurrentUser(c *gin.Context) {
-
-	currentUser, exists := c.Get("currentUser")
+	currentUserInterface, exists := c.Get("currentUser")
 	if !exists {
 		c.JSON(http.StatusUnauthorized, gin.H{"error": "User not authenticated"})
 		return
 	}
-	user := currentUser.(models.User)
-
+	userPtr, ok := currentUserInterface.(*models.User)
+	if !ok {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to get current user"})
+		return
+	}
+	user := *userPtr
 	c.JSON(http.StatusOK, gin.H{
 		"message": "Current user is: " + user.Username,
 	})

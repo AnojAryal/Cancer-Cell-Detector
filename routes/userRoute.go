@@ -7,13 +7,17 @@ import (
 )
 
 func UserRoutes(r *gin.Engine) {
-	r.POST("/create-user", middleware.RequireAuth, controllers.UserCreate)
-	r.GET("/users", controllers.GetAllUsers)
-	r.GET("/users/:id", controllers.GetUserByID)
-	r.PATCH("/users/:id", controllers.PatchUserByID)
-	r.DELETE("/users/:id", controllers.DeleteUserById)
+	authRequired := r.Group("/")
+	authRequired.Use(middleware.RequireAuth)
+
+	authRequired.POST("/create-user", controllers.UserCreate)
+	authRequired.GET("/users", controllers.GetAllUsers)
+	authRequired.GET("/users/:id", controllers.GetUserByID)
+	authRequired.PATCH("/users/:id", controllers.PatchUserByID)
+	authRequired.DELETE("/users/:id", controllers.DeleteUserByID)
+	authRequired.GET("/validate", controllers.Validate)
+	authRequired.GET("/current-user", controllers.GetCurrentUser)
+
 	r.GET("/verify/:token", controllers.VerifyUserEmail)
 	r.POST("/login", controllers.Login)
-	r.GET("/validate", middleware.RequireAuth, controllers.Validate)
-	r.GET("/current-user", middleware.RequireAuth, controllers.GetCurrentUser)
 }
