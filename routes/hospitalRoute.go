@@ -7,13 +7,13 @@ import (
 )
 
 func HospitalRoutes(r *gin.Engine) {
-	authRequired := r.Group("/")
-	authRequired.Use(middleware.RequireAuth)
+	adminRoutes := r.Group("/")
+	adminRoutes.Use(middleware.RequireAuth)
+	adminRoutes.Use(middleware.RequireAdmin)
 
-	authRequired.POST("/hospitals", controllers.CreateHospital)
-	authRequired.GET("/hospitals", controllers.GetAllHospitals)
-	authRequired.GET("/hospitals/:id", controllers.GetHospitalById)
-	authRequired.PUT("/hospitals/:id", controllers.UpdateHospitalById)
-	authRequired.DELETE("/hospitals/:id", controllers.DeleteHospitalById)
-
+	adminRoutes.POST("/hospitals", controllers.CreateHospital)
+	adminRoutes.GET("/hospitals", controllers.GetAllHospitals)
+	adminRoutes.GET("/hospitals/:id", controllers.GetHospitalById)
+	adminRoutes.PUT("/hospitals/:id", controllers.UpdateHospitalById)
+	adminRoutes.DELETE("/hospitals/:id", controllers.DeleteHospitalById)
 }
