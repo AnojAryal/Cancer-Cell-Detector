@@ -6,20 +6,27 @@ import (
 	"time"
 
 	"github.com/anojaryal/Cancer-Cell-Detector/initializers"
+	"github.com/anojaryal/Cancer-Cell-Detector/middleware"
 	"github.com/anojaryal/Cancer-Cell-Detector/models"
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
 )
 
-// CreatePatient
 func CreatePatient(c *gin.Context) {
 	var patientCreate struct {
-		FirstName string    `json:"first_name"`
-		LastName  string    `json:"last_name"`
-		Email     string    `json:"email"`
-		Phone     string    `json:"phone"`
-		BirthDate time.Time `json:"birth_date"`
+		FirstName string
+		LastName  string
+		Email     string
+		Phone     string
+		BirthDate time.Time
 	}
+
+	currentUser, exists := c.Get(middleware.CurrentUser)
+	if !exists {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "User not authenticated"})
+		return
+	}
+	user := currentUser.(*models.User)
 
 	hospitalIDStr := c.Param("hospital_id")
 	hospitalID, err := strconv.Atoi(hospitalIDStr)
@@ -46,6 +53,22 @@ func CreatePatient(c *gin.Context) {
 		return
 	}
 
+	var hospitalIDToUse uint
+
+	if user.IsAdmin {
+		// Admin can create a patient for any hospital
+		hospitalIDToUse = uint(hospitalID)
+	} else {
+		// Non-admin user can only create a patient for their associated hospital
+		hospitalIDToUse = user.HospitalID
+		if hospitalIDToUse != uint(hospitalID) {
+			c.JSON(http.StatusForbidden, gin.H{
+				"error": "You do not have permission to create a patient for this hospital",
+			})
+			return
+		}
+	}
+
 	// Create a patient instance
 	patient := models.Patient{
 		FirstName:  patientCreate.FirstName,
@@ -53,7 +76,7 @@ func CreatePatient(c *gin.Context) {
 		Email:      patientCreate.Email,
 		Phone:      patientCreate.Phone,
 		BirthDate:  patientCreate.BirthDate,
-		HospitalID: uint(hospitalID),
+		HospitalID: hospitalIDToUse,
 	}
 
 	result := initializers.DB.Create(&patient)
@@ -81,7 +104,6 @@ func GetPatients(c *gin.Context) {
 		return
 	}
 
-	// Check if the hospital exists
 	var hospital models.Hospital
 	if err := initializers.DB.First(&hospital, hospitalID).Error; err != nil {
 		c.JSON(http.StatusNotFound, gin.H{
@@ -90,7 +112,23 @@ func GetPatients(c *gin.Context) {
 		return
 	}
 
-	// Fetch patients for the hospital
+	currentUser, exists := c.Get(middleware.CurrentUser)
+	if !exists {
+		c.JSON(http.StatusUnauthorized, gin.H{
+			"error": "Unauthorized",
+		})
+		return
+	}
+
+	user := currentUser.(*models.User)
+
+	if !user.IsAdmin && user.HospitalID != uint(hospitalID) {
+		c.JSON(http.StatusForbidden, gin.H{
+			"error": "Permission denied",
+		})
+		return
+	}
+
 	var patients []models.Patient
 	result := initializers.DB.Where("hospital_id = ?", hospitalID).Find(&patients)
 	if result.Error != nil {
@@ -134,6 +172,23 @@ func GetPatientById(c *gin.Context) {
 		return
 	}
 
+	currentUser, exists := c.Get(middleware.CurrentUser)
+	if !exists {
+		c.JSON(http.StatusUnauthorized, gin.H{
+			"error": "Unauthorized",
+		})
+		return
+	}
+
+	user := currentUser.(*models.User)
+
+	if !user.IsAdmin && user.HospitalID != uint(hospitalID) {
+		c.JSON(http.StatusForbidden, gin.H{
+			"error": "Permission denied",
+		})
+		return
+	}
+
 	// Fetch the patient for the hospital
 	var patient models.Patient
 	if err := initializers.DB.Where("hospital_id = ? AND id = ?", hospitalID, patientID).First(&patient).Error; err != nil {
@@ -148,7 +203,7 @@ func GetPatientById(c *gin.Context) {
 	})
 }
 
-// UpdatePatient by id
+// UpdatePatientById
 func UpdatePatientById(c *gin.Context) {
 	hospitalIDStr := c.Param("hospital_id")
 	hospitalID, err := strconv.Atoi(hospitalIDStr)
@@ -168,26 +223,34 @@ func UpdatePatientById(c *gin.Context) {
 		return
 	}
 
+	currentUser, exists := c.Get(middleware.CurrentUser)
+	if !exists {
+		c.JSON(http.StatusUnauthorized, gin.H{
+			"error": "Unauthorized",
+		})
+		return
+	}
+
+	user := currentUser.(*models.User)
+
+	if !user.IsAdmin && user.HospitalID != uint(hospitalID) {
+		c.JSON(http.StatusForbidden, gin.H{
+			"error": "Permission denied",
+		})
+		return
+	}
+
 	var patientUpdate struct {
-		FirstName string    `json:"first_name"`
-		LastName  string    `json:"last_name"`
-		Email     string    `json:"email"`
-		Phone     string    `json:"phone"`
-		BirthDate time.Time `json:"birth_date"`
+		FirstName string
+		LastName  string
+		Email     string
+		Phone     string
+		BirthDate time.Time
 	}
 
 	if err := c.BindJSON(&patientUpdate); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{
 			"error": "Failed to read body",
-		})
-		return
-	}
-
-	// Check if the hospital exists
-	var hospital models.Hospital
-	if err := initializers.DB.First(&hospital, hospitalID).Error; err != nil {
-		c.JSON(http.StatusNotFound, gin.H{
-			"error": "Hospital not found",
 		})
 		return
 	}
@@ -241,10 +304,19 @@ func DeletePatientById(c *gin.Context) {
 		return
 	}
 
-	var hospital models.Hospital
-	if err := initializers.DB.First(&hospital, hospitalID).Error; err != nil {
-		c.JSON(http.StatusNotFound, gin.H{
-			"error": "Hospital not found",
+	currentUser, exists := c.Get(middleware.CurrentUser)
+	if !exists {
+		c.JSON(http.StatusUnauthorized, gin.H{
+			"error": "Unauthorized",
+		})
+		return
+	}
+
+	user := currentUser.(*models.User)
+
+	if !user.IsAdmin && user.HospitalID != uint(hospitalID) {
+		c.JSON(http.StatusForbidden, gin.H{
+			"error": "Permission denied",
 		})
 		return
 	}
