@@ -74,4 +74,17 @@ func RequireAuth(c *gin.Context) {
 	c.Set("hospital_id", uint(hospitalID))
 
 	c.Next()
+
+}
+
+func RequireAdmin(c *gin.Context) {
+	isAdmin, exists := c.Get("is_admin")
+	if !exists || !isAdmin.(bool) {
+		c.JSON(http.StatusForbidden, gin.H{"error": "Not enough permissions"})
+		c.Abort()
+		return
+	}
+
+	c.Next()
+
 }
