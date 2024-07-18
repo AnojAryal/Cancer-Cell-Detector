@@ -4,6 +4,7 @@ import (
 	"net/http"
 
 	"github.com/anojaryal/Cancer-Cell-Detector/initializers"
+	"github.com/anojaryal/Cancer-Cell-Detector/middleware"
 	"github.com/anojaryal/Cancer-Cell-Detector/models"
 	"github.com/gin-gonic/gin"
 	"gorm.io/gorm"
@@ -11,23 +12,22 @@ import (
 
 // CreateHospital
 func CreateHospital(c *gin.Context) {
+	middleware.RequireAuth(c)
+	middleware.RequireAdmin(c)
 
 	var body struct {
-		Name    string `json:"name"`
-		Address string `json:"address"`
-		Phone   string `json:"phone"`
-		Email   string `json:"email"`
+		Name    string
+		Address string
+		Phone   string
+		Email   string
 	}
 
-	// Bind request body to struct
 	if err := c.Bind(&body); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{
 			"error": "Failed to read body",
 		})
 		return
 	}
-
-	//hospital instance
 	hospital := models.Hospital{
 		Name:    body.Name,
 		Address: body.Address,
@@ -48,8 +48,11 @@ func CreateHospital(c *gin.Context) {
 	})
 }
 
-// get all hospitals
+// GetAllHospitals
 func GetAllHospitals(c *gin.Context) {
+	middleware.RequireAuth(c)
+	middleware.RequireAdmin(c)
+
 	var hospitals []models.Hospital
 	if result := initializers.DB.Preload("Users").Preload("Patients").Find(&hospitals); result.Error != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to retrieve hospitals"})
@@ -60,6 +63,9 @@ func GetAllHospitals(c *gin.Context) {
 
 // GetHospitalById
 func GetHospitalById(c *gin.Context) {
+	middleware.RequireAuth(c)
+	middleware.RequireAdmin(c)
+
 	var hospital models.Hospital
 
 	// Extract the hospital ID from the URL parameters
@@ -79,8 +85,11 @@ func GetHospitalById(c *gin.Context) {
 	c.JSON(http.StatusOK, hospital)
 }
 
-// update hospital by id
+// UpdateHospitalById
 func UpdateHospitalById(c *gin.Context) {
+	middleware.RequireAuth(c)
+	middleware.RequireAdmin(c)
+
 	var hospital models.Hospital
 
 	id := c.Param("id")
@@ -106,7 +115,11 @@ func UpdateHospitalById(c *gin.Context) {
 	c.JSON(http.StatusOK, hospital)
 }
 
+// DeleteHospitalById
 func DeleteHospitalById(c *gin.Context) {
+	middleware.RequireAuth(c)
+	middleware.RequireAdmin(c)
+
 	var hospital models.Hospital
 
 	id := c.Param("id")

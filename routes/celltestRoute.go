@@ -15,5 +15,7 @@ func CellTestRoutes(r *gin.Engine) {
 	r.GET("/hospital/:hospital_id/patients/:patient_id/cell_tests/:celltest_id/data_images", controllers.GetImageData)
 	r.POST("/hospital/:hospital_id/patients/:patient_id/cell_tests/:celltest_id/results", controllers.PostResult)
 	r.GET("/hospital/:hospital_id/patients/:patient_id/cell_tests/:celltest_id/results", controllers.GetResult)
+	r.POST("/hospital/:hospital_id/patients/:patient_id/cell_tests/:celltest_id/results/:result_id/result_images", controllers.PostResultImage)
+	r.GET("/hospital/:hospital_id/patients/:patient_id/cell_tests/:celltest_id/results/:result_id/result_images", controllers.GetResultImage)
 
 }

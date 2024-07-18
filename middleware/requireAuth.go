@@ -15,15 +15,14 @@ import (
 const CurrentUser = "currentUser"
 
 func RequireAuth(c *gin.Context) {
-
 	tokenString, err := c.Cookie("Authorization")
 	if err != nil {
-		c.AbortWithStatus(http.StatusUnauthorized)
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "Authorization cookie not found"})
+		c.Abort()
 		return
 	}
 
 	token, err := jwt.Parse(tokenString, func(token *jwt.Token) (interface{}, error) {
-
 		if _, ok := token.Method.(*jwt.SigningMethodHMAC); !ok {
 			return nil, fmt.Errorf("unexpected signing method: %v", token.Header["alg"])
 		}
@@ -31,39 +30,41 @@ func RequireAuth(c *gin.Context) {
 	})
 
 	if err != nil || !token.Valid {
-		c.AbortWithStatus(http.StatusUnauthorized)
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "Invalid token"})
+		c.Abort()
 		return
 	}
 
 	claims, ok := token.Claims.(jwt.MapClaims)
 	if !ok {
-		c.AbortWithStatus(http.StatusUnauthorized)
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "Invalid token claims"})
+		c.Abort()
 		return
 	}
 
-	// Check token expiration
 	exp, ok := claims["exp"].(float64)
 	if !ok || float64(time.Now().Unix()) > exp {
-		c.AbortWithStatus(http.StatusUnauthorized)
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "Token has expired"})
+		c.Abort()
 		return
 	}
 
-	// Find user by token subject
 	sub, ok := claims["sub"].(float64)
 	if !ok {
-		c.AbortWithStatus(http.StatusUnauthorized)
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "Invalid token subject"})
+		c.Abort()
 		return
 	}
 
 	var user models.User
 	if err := initializers.DB.First(&user, int(sub)).Error; err != nil {
-		c.AbortWithStatus(http.StatusUnauthorized)
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "User not found"})
+		c.Abort()
 		return
 	}
 
-	c.Set(CurrentUser, user)
+	c.Set(CurrentUser, &user)
 
-	// Set role flags in context
 	isAdmin, _ := claims["is_admin"].(bool)
 	isHospitalAdmin, _ := claims["is_hospital_admin"].(bool)
 	hospitalID, _ := claims["hospital_id"].(float64)
@@ -73,4 +74,17 @@ func RequireAuth(c *gin.Context) {
 	c.Set("hospital_id", uint(hospitalID))
 
 	c.Next()
+
+}
+
+func RequireAdmin(c *gin.Context) {
+	isAdmin, exists := c.Get("is_admin")
+	if !exists || !isAdmin.(bool) {
+		c.JSON(http.StatusForbidden, gin.H{"error": "Not enough permissions"})
+		c.Abort()
+		return
+	}
+
+	c.Next()
+
 }
