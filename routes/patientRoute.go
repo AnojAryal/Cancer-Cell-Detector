@@ -17,7 +17,7 @@ func PatientRoutes(r *gin.Engine) {
 	authRequired.PUT("/hospital/:hospital_id/patients/:patient_id", controllers.UpdatePatientById)
 	authRequired.DELETE("/hospital/:hospital_id/patients/:patient_id", controllers.DeletePatientById)
 	authRequired.POST("/hospital/:hospital_id/patients/:patient_id/address", controllers.AddPatientAddress)
-	authRequired.GET("/hospital/:hospital_id/patients/:patient_id/address/:address_id", controllers.GetPatientAddressById)
+	authRequired.GET("/hospital/:hospital_id/patients/:patient_id/address/:address_id", controllers.GetPatientAddressByID)
 	authRequired.PUT("/hospital/:hospital_id/patients/:patient_id/address/:address_id", controllers.UpdateAddress)
 	authRequired.DELETE("/hospital/:hospital_id/patients/:patient_id/address/:address_id", controllers.DeleteAddress)
 
