@@ -11,71 +11,74 @@ import (
 	"github.com/google/uuid"
 )
 
-// creating celltest of a patient
+// Create Cell test
 func CreateCellTest(c *gin.Context) {
 	hospitalIDStr := c.Param("hospital_id")
 	hospitalID, err := strconv.Atoi(hospitalIDStr)
 	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{
-			"error": "Invalid hospital ID",
-		})
+		c.JSON(http.StatusBadRequest, gin.H{"detail": "Invalid hospital ID"})
 		return
 	}
 
 	patientIDStr := c.Param("patient_id")
 	patientID, err := uuid.Parse(patientIDStr)
 	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{
-			"error": "Invalid patient ID",
-		})
+		c.JSON(http.StatusBadRequest, gin.H{"detail": "Invalid patient ID"})
+		return
+	}
+
+	currentUser, exists := c.Get("currentUser")
+	if !exists {
+		c.JSON(http.StatusUnauthorized, gin.H{"detail": "Unauthorized"})
+		return
+	}
+
+	user, ok := currentUser.(*models.User)
+	if !ok {
+		c.JSON(http.StatusUnauthorized, gin.H{"detail": "Unauthorized"})
+		return
+	}
+
+	if !user.IsAdmin && user.HospitalID != uint(hospitalID) {
+		c.JSON(http.StatusForbidden, gin.H{"detail": "Permission denied"})
 		return
 	}
 
 	var hospital models.Hospital
 	if err := initializers.DB.First(&hospital, hospitalID).Error; err != nil {
-		c.JSON(http.StatusNotFound, gin.H{
-			"error": "Hospital not found",
-		})
+		c.JSON(http.StatusNotFound, gin.H{"detail": "Hospital not found"})
 		return
 	}
 
 	var patient models.Patient
 	if err := initializers.DB.Where("hospital_id = ? AND id = ?", hospitalID, patientID).First(&patient).Error; err != nil {
-		c.JSON(http.StatusNotFound, gin.H{
-			"error": "Patient not found",
-		})
+		c.JSON(http.StatusNotFound, gin.H{"detail": "Patient not found"})
 		return
 	}
 
-	var celltest struct {
-		Title           string `json:"Title"`
-		Description     string `json:"Description"`
-		DetectionStatus string `json:"DetectionStatus"`
-		PatientID       int    `json:"PatientID"`
+	var cellTestInput struct {
+		Title           string `json:"title" binding:"required"`
+		Description     string `json:"description" binding:"required"`
+		DetectionStatus string `json:"detection_status" binding:"required"`
 	}
-	if err := c.BindJSON(&celltest); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{
-			"error": "Failed to read body",
-		})
+	if err := c.ShouldBindJSON(&cellTestInput); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"detail": "Failed to read body"})
 		return
 	}
-	newCelltest := models.CellTest{
-		Title:           celltest.Title,
-		Description:     celltest.Description,
-		DetectionStatus: celltest.DetectionStatus,
+
+	newCellTest := models.CellTest{
+		Title:           cellTestInput.Title,
+		Description:     cellTestInput.Description,
+		DetectionStatus: cellTestInput.DetectionStatus,
 		PatientID:       patientID,
 	}
 
-	if err := initializers.DB.Create(&newCelltest).Error; err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{
-			"error": "Failed to create celltest",
-		})
+	if err := initializers.DB.Create(&newCellTest).Error; err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"detail": "Failed to create cell test"})
 		return
 	}
-	c.JSON(http.StatusCreated, gin.H{
-		"message":  "celltest created successfully",
-		"celltest": newCelltest,
-	})
+
+	c.JSON(http.StatusCreated, newCellTest)
 }
 
 // Get Patient Celltest
@@ -83,48 +86,47 @@ func GetCellTests(c *gin.Context) {
 	hospitalIDStr := c.Param("hospital_id")
 	hospitalID, err := strconv.Atoi(hospitalIDStr)
 	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{
-			"error": "Invalid hospital ID",
-		})
+		c.JSON(http.StatusBadRequest, gin.H{"detail": "Invalid hospital ID"})
 		return
 	}
 
 	patientIDStr := c.Param("patient_id")
 	patientID, err := uuid.Parse(patientIDStr)
 	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{
-			"error": "Invalid patient ID",
-		})
+		c.JSON(http.StatusBadRequest, gin.H{"detail": "Invalid patient ID"})
 		return
 	}
 
-	var hospital models.Hospital
-	if err := initializers.DB.First(&hospital, hospitalID).Error; err != nil {
-		c.JSON(http.StatusNotFound, gin.H{
-			"error": "Hospital not found",
-		})
+	currentUser, exists := c.Get("currentUser")
+	if !exists {
+		c.JSON(http.StatusUnauthorized, gin.H{"detail": "Unauthorized"})
+		return
+	}
+
+	user, ok := currentUser.(*models.User)
+	if !ok {
+		c.JSON(http.StatusUnauthorized, gin.H{"detail": "Unauthorized"})
+		return
+	}
+
+	if !user.IsAdmin && user.HospitalID != uint(hospitalID) {
+		c.JSON(http.StatusForbidden, gin.H{"detail": "Permission denied"})
 		return
 	}
 
 	var patient models.Patient
 	if err := initializers.DB.Where("hospital_id = ? AND id = ?", hospitalID, patientID).First(&patient).Error; err != nil {
-		c.JSON(http.StatusNotFound, gin.H{
-			"error": "Patient not found",
-		})
+		c.JSON(http.StatusNotFound, gin.H{"detail": "Patient not found"})
 		return
 	}
 
-	var celltest models.CellTest
-	if err := initializers.DB.Where("patient_id = ?", patientID).First(&celltest).Error; err != nil {
-		c.JSON(http.StatusNotFound, gin.H{
-			"error": "Celltest not found",
-		})
+	var cellTests []models.CellTest
+	if err := initializers.DB.Where("patient_id = ?", patientID).Find(&cellTests).Error; err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"detail": "Failed to retrieve cell tests"})
 		return
 	}
 
-	c.JSON(http.StatusOK, gin.H{
-		"celltest": celltest,
-	})
+	c.JSON(http.StatusOK, cellTests)
 }
 
 // Update Celltest
