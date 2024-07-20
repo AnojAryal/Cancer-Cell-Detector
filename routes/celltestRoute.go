@@ -11,7 +11,7 @@ func CellTestRoutes(r *gin.Engine) {
 	r.POST("/hospital/:hospital_id/patients/:patient_id/cell_tests", middleware.RequireAuth, controllers.CreateCellTest)
 	r.GET("/hospital/:hospital_id/patients/:patient_id/cell_tests", middleware.RequireAuth, controllers.GetCellTests)
 	r.PUT("/hospital/:hospital_id/patients/:patient_id/cell_tests/:cell_test_id", middleware.RequireAuth, controllers.UpdateCellTest)
-	r.DELETE("/hospital/:hospital_id/patients/:patient_id/cell_tests/:cell_test_id", controllers.DeleteCellTest)
+	r.DELETE("/hospital/:hospital_id/patients/:patient_id/cell_tests/:cell_test_id", middleware.RequireAuth, controllers.DeleteCellTest)
 	r.POST("/hospital/:hospital_id/patients/:patient_id/cell_tests/:cell_test_id/data_images", controllers.PostImageData)
 	r.GET("/hospital/:hospital_id/patients/:patient_id/cell_tests/:cell_test_id/data_images", controllers.GetImageData)
 	r.POST("/hospital/:hospital_id/patients/:patient_id/cell_tests/:cell_test_id/results", controllers.PostResult)
