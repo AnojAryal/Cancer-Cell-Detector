@@ -2,19 +2,23 @@ package routes
 
 import (
 	"github.com/anojaryal/Cancer-Cell-Detector/controllers"
+	"github.com/anojaryal/Cancer-Cell-Detector/middleware"
 	"github.com/gin-gonic/gin"
 )
 
 func PatientRoutes(r *gin.Engine) {
 
-	r.POST("/hospital/:hospital_id/patient", controllers.CreatePatient)
-	r.GET("/hospital/:hospital_id/patients", controllers.GetPatients)
-	r.GET("/hospital/:hospital_id/patient/:patient_id", controllers.GetPatientById)
-	r.PUT("/hospital/:hospital_id/patient/:patient_id", controllers.UpdatePatientById)
-	r.DELETE("/hospital/:hospital_id/patient/:patient_id", controllers.DeletePatientById)
-	r.POST("/hospital/:hospital_id/patient/:patient_id/address", controllers.AddPatientAddress)
-	r.GET("/hospital/:hospital_id/patient/:patient_id/address/:address_id", controllers.GetPatientAddressById)
-	r.PUT("/hospital/:hospital_id/patient/:patient_id/address/:address_id", controllers.UpdateAddress)
-	r.DELETE("/hospital/:hospital_id/patient/:patient_id/address/:address_id", controllers.DeleteAddress)
+	authRequired := r.Group("/")
+	authRequired.Use(middleware.RequireAuth)
+
+	authRequired.POST("/hospital/:hospital_id/patients", controllers.CreatePatient)
+	authRequired.GET("/hospital/:hospital_id/patients", controllers.GetPatients)
+	authRequired.GET("/hospital/:hospital_id/patients/:patient_id", controllers.GetPatientById)
+	authRequired.PUT("/hospital/:hospital_id/patients/:patient_id", controllers.UpdatePatientById)
+	authRequired.DELETE("/hospital/:hospital_id/patients/:patient_id", controllers.DeletePatientById)
+	authRequired.POST("/hospital/:hospital_id/patients/:patient_id/address", controllers.AddPatientAddress)
+	authRequired.GET("/hospital/:hospital_id/patients/:patient_id/address/:address_id", controllers.GetPatientAddressByID)
+	authRequired.PUT("/hospital/:hospital_id/patients/:patient_id/address/:address_id", controllers.UpdatePatientAddress)
+	authRequired.DELETE("/hospital/:hospital_id/patients/:patient_id/address/:address_id", controllers.DeleteAddress)
 
 }

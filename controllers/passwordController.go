@@ -20,7 +20,7 @@ func ChangePassword(c *gin.Context) {
 		c.JSON(http.StatusUnauthorized, gin.H{"error": "Unauthorized"})
 		return
 	}
-	user := currentUser.(models.User)
+	user := currentUser.(*models.User)
 
 	// Bind request body
 	var password_change struct {
@@ -55,11 +55,6 @@ func ChangePassword(c *gin.Context) {
 
 type SendResetEmailRequest struct {
 	Email string `json:"email"`
-}
-
-type ResetPasswordRequest struct {
-	Token       string `json:"token"`
-	NewPassword string `json:"new_password"`
 }
 
 // SendResetEmail
@@ -110,7 +105,13 @@ func SendResetEmail(c *gin.Context) {
 
 	c.JSON(http.StatusCreated, gin.H{
 		"message": "Password reset token sent",
+		"token":   resetToken.Token,
 	})
+}
+
+type ResetPasswordRequest struct {
+	Token       string `json:"token"`
+	NewPassword string `json:"new_password" binding:"required"`
 }
 
 // ResetPassword

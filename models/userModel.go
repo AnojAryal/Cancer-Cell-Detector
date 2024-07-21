@@ -13,10 +13,10 @@ type User struct {
 	BloodGroup      string
 	Gender          string
 	ContactNo       string
-	Password        string
-	IsVerified      bool `gorm:"default:false"`
-	IsAdmin         bool `gorm:"default:false"`
-	IsHospitalAdmin bool `gorm:"default:false"`
+	Password        string `gorm:"not null"`
+	IsVerified      bool   `gorm:"default:false"`
+	IsAdmin         bool   `gorm:"default:false"`
+	IsHospitalAdmin bool   `gorm:"default:false"`
 	HospitalID      uint
 	Hospital        *Hospital `gorm:"foreignKey:HospitalID"`
 }
