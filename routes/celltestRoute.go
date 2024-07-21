@@ -7,16 +7,18 @@ import (
 )
 
 func CellTestRoutes(r *gin.Engine) {
+	authRequired := r.Group("/")
+	authRequired.Use(middleware.RequireAuth)
 
-	r.POST("/hospital/:hospital_id/patients/:patient_id/cell_tests", middleware.RequireAuth, controllers.CreateCellTest)
-	r.GET("/hospital/:hospital_id/patients/:patient_id/cell_tests", middleware.RequireAuth, controllers.GetCellTests)
-	r.PUT("/hospital/:hospital_id/patients/:patient_id/cell_tests/:cell_test_id", middleware.RequireAuth, controllers.UpdateCellTest)
-	r.DELETE("/hospital/:hospital_id/patients/:patient_id/cell_tests/:cell_test_id", middleware.RequireAuth, controllers.DeleteCellTest)
-	r.POST("/hospital/:hospital_id/patients/:patient_id/cell_tests/:cell_test_id/data_images", middleware.RequireAuth, controllers.PostImageData)
-	r.GET("/hospital/:hospital_id/patients/:patient_id/cell_tests/:cell_test_id/data_images", middleware.RequireAuth, controllers.GetImageData)
-	r.POST("/hospital/:hospital_id/patients/:patient_id/cell_tests/:cell_test_id/results", controllers.PostResult)
-	r.GET("/hospital/:hospital_id/patients/:patient_id/cell_tests/:cell_test_id/results", controllers.GetResult)
-	r.POST("/hospital/:hospital_id/patients/:patient_id/cell_tests/:cell_test_id/results/:result_id/result_images", controllers.PostResultImage)
-	r.GET("/hospital/:hospital_id/patients/:patient_id/cell_tests/:cell_test_id/results/:result_id/result_images", controllers.GetResultImage)
+	authRequired.POST("/hospital/:hospital_id/patients/:patient_id/cell_tests", controllers.CreateCellTest)
+	authRequired.GET("/hospital/:hospital_id/patients/:patient_id/cell_tests", controllers.GetCellTests)
+	authRequired.PUT("/hospital/:hospital_id/patients/:patient_id/cell_tests/:cell_test_id", controllers.UpdateCellTest)
+	authRequired.DELETE("/hospital/:hospital_id/patients/:patient_id/cell_tests/:cell_test_id", controllers.DeleteCellTest)
+	authRequired.POST("/hospital/:hospital_id/patients/:patient_id/cell_tests/:cell_test_id/data_images", controllers.PostImageData)
+	authRequired.GET("/hospital/:hospital_id/patients/:patient_id/cell_tests/:cell_test_id/data_images", controllers.GetImageData)
+	authRequired.POST("/hospital/:hospital_id/patients/:patient_id/cell_tests/:cell_test_id/results", controllers.PostResult)
+	authRequired.GET("/hospital/:hospital_id/patients/:patient_id/cell_tests/:cell_test_id/results", controllers.GetResult)
+	authRequired.POST("/hospital/:hospital_id/patients/:patient_id/cell_tests/:cell_test_id/results/:result_id/result_images", controllers.PostResultImage)
+	authRequired.GET("/hospital/:hospital_id/patients/:patient_id/cell_tests/:cell_test_id/results/:result_id/result_images", controllers.GetResultImage)
 
 }
