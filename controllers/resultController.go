@@ -32,7 +32,7 @@ func PostResultImage(c *gin.Context) {
 		return
 	}
 
-	celltestIDStr := c.Param("celltest_id")
+	celltestIDStr := c.Param("cell_test_id")
 	celltestID, err := uuid.Parse(celltestIDStr)
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{
@@ -50,19 +50,22 @@ func PostResultImage(c *gin.Context) {
 		return
 	}
 
-	var hospital models.Hospital
-	if err := initializers.DB.First(&hospital, hospitalID).Error; err != nil {
-		c.JSON(http.StatusNotFound, gin.H{
-			"error": "Hospital not found",
-		})
+	// Retrieve the current user from context
+	currentUser, exists := c.Get("currentUser")
+	if !exists {
+		c.JSON(http.StatusUnauthorized, gin.H{"detail": "Unauthorized"})
 		return
 	}
 
-	var patient models.Patient
-	if err := initializers.DB.Where("hospital_id = ? AND id = ?", hospitalID, patientID).First(&patient).Error; err != nil {
-		c.JSON(http.StatusNotFound, gin.H{
-			"error": "Patient not found",
-		})
+	user, ok := currentUser.(*models.User)
+	if !ok {
+		c.JSON(http.StatusUnauthorized, gin.H{"detail": "Unauthorized"})
+		return
+	}
+
+	// Check if the user has permission
+	if !user.IsAdmin && user.HospitalID != uint(hospitalID) {
+		c.JSON(http.StatusForbidden, gin.H{"detail": "Permission denied"})
 		return
 	}
 
